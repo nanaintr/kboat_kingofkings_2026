@@ -1,65 +1,104 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+import confetti from "canvas-confetti";
+
+type Result =
+  | null
+  | { won: false }
+  | { won: true; nameMasked: string; phoneMasked: string; amount: string };
 
 export default function Home() {
+  const [phone, setPhone] = useState("");
+  const [result, setResult] = useState<Result>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const checkWinner = async () => {
+    setError("");
+    setResult(null);
+    setLoading(true);
+
+    const res = await fetch("/api/check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone }),
+    });
+
+    const data = await res.json();
+    setLoading(false);
+
+    if (!res.ok) {
+      setError(data.error || "조회 중 오류가 발생했습니다.");
+      return;
+    }
+
+    setResult(data);
+
+    if (data.won) {
+      confetti({ particleCount: 180, spread: 90, origin: { y: 0.15 } });
+    }
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="page">
+      <section className="wrap">
+        <div className="topBadge">2026 경정 왕중왕전</div>
+
+        <h1>
+          매일 만원 챌린지
+          <br />
+          쿠폰 당첨자 조회
+        </h1>
+
+        <p className="desc">
+          휴대전화번호 전체를 입력하시면 쿠폰 당첨 여부를 확인하실 수 있습니다.
+        </p>
+
+        <div className="searchCard">
+          <label>휴대전화번호</label>
+          <input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="01012341234"
+            inputMode="numeric"
+          />
+          <button onClick={checkWinner} disabled={loading}>
+            {loading ? "조회 중입니다..." : "당첨 여부 조회하기"}
+          </button>
+          {error && <p className="error">{error}</p>}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+
+        {result?.won && (
+          <div className="resultCard win">
+            <h2>🎊 축하합니다!</h2>
+            <p className="sub">쿠폰에 당첨되셨습니다.</p>
+
+            <div className="info">
+              <p><span>성명</span> <strong>{result.nameMasked}</strong></p>
+              <p><span>연락처</span> <strong>{result.phoneMasked}</strong></p>
+              <p><span>쿠폰 당첨 금액</span> <strong className="amount">{result.amount}</strong></p>
+            </div>
+
+            <div className="notice">
+              쿠폰은 6월 24일(수)에 지급해드릴 예정입니다.<br />
+              쿠폰의 유효기간은 7월 2일(목)까지이니 늦지 않게 사용해주세요.<br />
+              매일 만원 챌린지는 6월 26일(금)부터 6월 28일(일)까지<br />
+              경륜 왕중왕전에서 계속됩니다!
+            </div>
+          </div>
+        )}
+
+        {result && !result.won && (
+          <div className="resultCard lose">
+            <h2>🙇 아쉽지만 이번에는 당첨되시지 않았습니다.</h2>
+            <p>
+              매일 만원 챌린지는 6월 26일(금)부터 6월 28일(일)까지<br />
+              경륜 왕중왕전에서 계속됩니다!
+            </p>
+          </div>
+        )}
+      </section>
+    </main>
   );
 }
